@@ -28,7 +28,7 @@ b = beta / (rho_0 * c_0^3);         %factor b in Burgers' equation
 f_s = 10^9;
 
 %% define input waveform
-amplitudes = [1; 10; 100; 250; 500; 550; 600; 650; 700; 750; 800; 850; 900; 950; 1000] * 10^3;
+amplitudes = 1e6;%[1; 10; 100; 250; 500; 550; 600; 650; 700; 750; 800; 850; 900; 950; 1000] * 10^3;
 N_amplitudes = numel(amplitudes);
 
 %compute Gaussian pulse
@@ -191,8 +191,8 @@ str_legend{1, N_orders + 1} = 'frac steps';
 for k = 1:N_amplitudes
     
     figure(2*k-1);
-    %hdl_line = semilogy((1:N_steps_prop), reshape(error_rel_norm_volterra(k,:,:), N_orders, N_steps_prop)', (1:N_steps_prop), error_rel_norm_frac_steps(k,:));   
-    hdl_line = semilogy((1:N_steps_prop), reshape(error_rel_norm_volterra(k,:,:), N_orders, N_steps_prop)');   
+    hdl_line = semilogy((1:N_steps_prop), reshape(error_rel_norm_volterra(k,:,:), N_orders, N_steps_prop)', (1:N_steps_prop), error_rel_norm_frac_steps(k,:));   
+%     hdl_line = semilogy((1:N_steps_prop), reshape(error_rel_norm_volterra(k,:,:), N_orders, N_steps_prop)');   
     %set(hdl_line(1:end-1), 'Marker', 's', 'MarkerSize', 5);
     set(hdl_line(end), 'LineStyle', '--');
     
@@ -325,7 +325,7 @@ for k = 1:N_draw_steps
     F(k) = getframe(gcf);
 end
 
-movie2avi(F, 'C:\temp\burgers_comparison_hp.avi');
+movie2avi(F, './burgers_comparison_hp.avi');
 
 %% create movie (low pressure)
 draw_steps = (1:2:N_steps_prop + 1);
