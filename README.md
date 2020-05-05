@@ -12,6 +12,11 @@ the nonlinear propagation of
 plane ultrasonic waves in
 homogeneous viscous fluids.
 
+The model is potentially interesting for
+fast tissue harmonic imaging (THI) or
+the detection of
+ultrasound contrast agents.
+
 ## References :notebook:
 
 The solution and exemplary images were published in:
