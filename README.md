@@ -1,4 +1,4 @@
-# Analytical Solution to the Burgers Equation Based on Volterra Series
+# Evaluation of an Analytical Volterra Series Solution to the Burgers Equation
 
 Comparison of
 a Volterra series solution to
