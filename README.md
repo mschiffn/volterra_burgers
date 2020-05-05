@@ -5,6 +5,13 @@ a Volterra series solution to
 the Burgers equation to
 a fractional steps method.
 
+## Background
+
+The Burgers equation models
+the nonlinear propagation of
+plane ultrasonic waves in
+homogeneous viscous fluids.
+
 ## References :notebook:
 
 The solution and exemplary images were published in:
