@@ -60,7 +60,7 @@ elseif order_N > 2
     temp2 = tukeywin(N_input, 0.1)' .* temp2;
     
     %use recurrence relation to calculate output of inhomogeneous system
-    out1 = Hn_structure_IIR_recursion_6_simplified({input_signals{1,1}, temp2}, filter_fft, filter_fft_2, f_s, a, b, y_out_prec(1,1:(end - 1))); 
+    out1 = volterra.Hn_structure_IIR_recursion_6_simplified({input_signals{1,1}, temp2}, filter_fft, filter_fft_2, f_s, a, b, y_out_prec(1,1:(end - 1))); 
 end
 
 %use existing signal as output of homogeneous system

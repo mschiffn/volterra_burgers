@@ -1,7 +1,9 @@
-function [pressure_output, N_steps] = burgers_nonlinear_step(pressure_input, f_s, N_samples, delta_z, b, method_interp)
-%solve nonlinear part of the Burgers equation
-%author: Martin Schiffner
-%date: 2009-03-30
+function [ pressure_output, N_steps ] = nonlinear( pressure_input, f_s, N_samples, delta_z, b, method_interp )
+% solve nonlinear part of the Burgers equation
+%
+% author: Martin Schiffner
+% date: 2009-03-30
+% modified: 2020-05-06
 
 tau_z = (1:N_samples) / f_s;        %time axis associated to input signal
 N_steps = 0;
@@ -73,3 +75,5 @@ end
 
 %assign changes to output signal
 pressure_output = pressure_input;
+
+end % function [ pressure_output, N_steps ] = nonlinear( pressure_input, f_s, N_samples, delta_z, b, method_interp )

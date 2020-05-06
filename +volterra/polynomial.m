@@ -1,8 +1,10 @@
-function pressure_output = burgers_volterra(pressure_input, f_s, delta_z, a, b, order_N)
-%author: Martin Schiffner
-%date: 2009-04-14
+function pressure_output = polynomial( pressure_input, f_s, delta_z, a, b, order_N )
+%
+% author: Martin Schiffner
+% date: 2009-04-14
+% modified: 2020-05-06
 
-%internal parameters
+% internal parameters
 N_input = numel(pressure_input);
 atten_td = 150;       % attenuation in time-domain at filter-length (dB)
 
@@ -33,7 +35,7 @@ pressure_output = signals_output{1,1};
 %compute outputs of homogeneous systems of order >= 2
 for l = 2:order_N
         
-    signals_output{1,l} = Hn_structure_IIR_6_simplified(pressure_input, filter_gauss_fft, filter_gauss_fft_2, f_s, a, b, signals_output(1, 1:(l - 1)));
+    signals_output{1,l} = volterra.Hn_structure_IIR_6_simplified( pressure_input, filter_gauss_fft, filter_gauss_fft_2, f_s, a, b, signals_output(1, 1:(l - 1)) );
     pressure_output = pressure_output + signals_output{1,l};
 end
 
@@ -42,3 +44,5 @@ pressure_output = pressure_output((M_filter_gauss + 1):(end - M_filter_gauss));
 
 %apply window function
 pressure_output = tukeywin(N_input, 0.1)' .* pressure_output;
+
+end % function pressure_output = polynomial( pressure_input, f_s, delta_z, a, b, order_N )

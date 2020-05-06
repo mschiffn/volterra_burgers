@@ -13,4 +13,4 @@ function y_out = Hn_structure_IIR_6_simplified(input, filter_fft, filter_fft_2, 
 %date: 2008-09-28
 
 %compute output of n-th-order homogeneous Volterra-System recursively
-y_out = Hn_structure_IIR_recursion_6_simplified({input, input}, filter_fft, filter_fft_2, f_s, a, b, y_out_prec);
+y_out = volterra.Hn_structure_IIR_recursion_6_simplified({input, input}, filter_fft, filter_fft_2, f_s, a, b, y_out_prec);

@@ -95,7 +95,7 @@ for k = 1:N_amplitudes
 
         % call fractional steps method
         %[pressure_reference{k, l + 1}, N_steps_nonlin(k, l + 1)] = burgers_frac_steps(pressure_reference{k, l}, f_s, delta_z_ref, a, b, 0);
-        pressure_reference{k, l + 1} = burgers_frac_steps_m( pressure_reference{ k, l }, f_s, delta_z_ref, a, b, 1 );
+        pressure_reference{k, l + 1} = fractional_steps.step( pressure_reference{ k, l }, f_s, delta_z_ref, a, b, 1 );
 
     end % for l = 1:N_steps_prop
 
@@ -139,7 +139,7 @@ for k = 1:N_amplitudes
         for m = 1:N_steps_prop
 
             % call Volterra method
-            pressure_volterra{ k, l, m + 1 } = burgers_volterra( pressure_volterra{ k, l, m }, f_s, delta_z, a, b, orders_N( l ) );
+            pressure_volterra{ k, l, m + 1 } = volterra.polynomial( pressure_volterra{ k, l, m }, f_s, delta_z, a, b, orders_N( l ) );
 
         end % for m = 1:N_steps_prop
 
@@ -175,7 +175,7 @@ for k = 1:N_amplitudes
 
         % call fractional steps method
 %         [ pressure_reference{ k, l + 1 }, N_steps_nonlin( k, l + 1 ) ] = burgers_frac_steps( pressure_reference{ k, l }, f_s, delta_z_ref, a, b, 0 );
-        pressure_frac_steps{ k, l + 1 } = burgers_frac_steps_m( pressure_frac_steps{ k, l }, f_s, delta_z, a, b, 1 );
+        pressure_frac_steps{ k, l + 1 } = fractional_steps.step( pressure_frac_steps{ k, l }, f_s, delta_z, a, b, 1 );
 
     end % for l = 1:N_steps_prop
 
