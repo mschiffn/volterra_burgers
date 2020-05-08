@@ -367,8 +367,6 @@ height_lgd = 0.75;
 
 text_size = 10;
 
-size_legend = size_label;
-
 %--------------------------------------------------------------------------
 % axis limits and ticks
 %--------------------------------------------------------------------------
@@ -412,6 +410,12 @@ title_factor_shift_x = 0;
 title_factor_shift_y = -0.075;
 
 %--------------------------------------------------------------------------
+% legend
+%--------------------------------------------------------------------------
+legend_font = 'Times';
+legend_size = label_size;
+
+%--------------------------------------------------------------------------
 % dependent parameters
 %--------------------------------------------------------------------------
 pos_x = zeros( 1, N_plots_x );
@@ -446,7 +450,6 @@ set( gcf, 'Units', 'centimeters');
 set( gcf, 'Position', [ 10, 10, paper_size_x, paper_size_y ] );
 set( gcf, 'PaperSize', [ paper_size_x, paper_size_y ] );
 set( gcf, 'PaperPositionMode', 'auto');
-set(gcf, 'NextPlot', 'replacechildren');
 
 axes_hdl = zeros( 1, N_plots_x * N_plots_y );
 
@@ -474,7 +477,7 @@ for k = 1:N_steps_draw
     % legend
     %----------------------------------------------------------------------
 	leg_hdl = legend( { 'linear propagation', 'nonlinear propagation' }, 'Location', 'northoutside', 'Orientation', 'horizontal', 'Units', 'centimeters' );
-    set( leg_hdl, 'FontSize', size_legend );
+    set( leg_hdl, 'FontName', legend_font, 'FontSize', legend_size );
 	set( leg_hdl, 'Position', [ pos_x( 2 ), pos_y( 1 ) + width_axis_y + delta_lgd, width_axis_x, height_lgd ] );
 
     %----------------------------------------------------------------------
