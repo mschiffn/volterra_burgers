@@ -18,10 +18,47 @@ the nonlinear propagation of
 plane ultrasonic waves in
 homogeneous viscous fluids.
 
-The model is potentially interesting for
-fast tissue harmonic imaging (THI) or
+Its incorporation into
+fast tissue harmonic imaging or
 the detection of
-ultrasound contrast agents.
+ultrasound contrast agents potentially improves
+these imaging modes.
+Moreover,
+the decompositions of
+arbitrary types of
+waves into
+steered plane waves permit
+the application of
+this model
+the Burgers equation to
+other types of waves.
+
+## Content
+
+The script "eval_methods.m" compares
+both methods by evaluating
+various error metrics.
+It additionally creates
+a movie illustrating
+the deformation of
+the wave and
+the accompanying generation of
+harmonics.
+
+The package +volterra contains
+the functions for
+the proposed Volterra polynomial, whereas
+the package +fractional_steps contains
+the functions for
+the fractional steps reference method.
+
+## Results
+
+The following animation depicts
+the result of
+the 10th-degree Volterra polynomial.
+
+![Animation](./burgers_propagation_hp.gif)
 
 ## References :notebook:
 

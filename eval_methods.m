@@ -3,7 +3,7 @@
 %
 % author: Martin Schiffner
 % date: 2009-04-14
-% modified: 2020-05-06
+% modified: 2020-05-07
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% clear workspace
@@ -19,27 +19,27 @@ clc;
 %--------------------------------------------------------------------------
 % independent
 %--------------------------------------------------------------------------
-mu = 1.002 * 10^-3;        %shear viscosity (Pa s)                (from "Acoustics" by A. D. Pierce, p. 514)
-mu_B_over_mu = 2.9;        %bulk viscosity over shear viscosity 3.0 - 2.7 (1) (from "Acoustics" by A. D. Pierce, p. 553)
-c_0 = 1482.87;             %small-signal sound speed (m / s) (?)  (from http://www.springerlink.com/content/v04n231880311050/fulltext.pdf)
-rho_0 = 998;               %ambient mass density (kg / m^3) (?)   (from http://www.efunda.com/materials/common_matl/show_liquid.cfm?matlname=waterdistilled4c)
-B_over_A = 5.0;            %measure of nonlinear effects (1)      (from "Nonlinear Acoustics" by Mark F. Hamilton, p. 34)
-beta = 1 + B_over_A / 2;   %coefficient of nonlinearity (1) 
-gamma = 1.0079;            %ratio of specific heats               (from "Acoustics" by A. D. Pierce, p. 34)
-Pr = 7;                    %Prandtl number mu * c_p / kappa       (from "Acoustics" by A. D. Pierce, p. 514)
+mu = 1.002 * 10^-3;        % shear viscosity (Pa s)                (from "Acoustics" by A. D. Pierce, p. 514)
+mu_B_over_mu = 2.9;        % bulk viscosity over shear viscosity 3.0 - 2.7 (1) (from "Acoustics" by A. D. Pierce, p. 553)
+c_0 = 1482.87;             % small-signal sound speed (m / s) (?)  (from http://www.springerlink.com/content/v04n231880311050/fulltext.pdf)
+rho_0 = 998;               % ambient mass density (kg / m^3) (?)   (from http://www.efunda.com/materials/common_matl/show_liquid.cfm?matlname=waterdistilled4c)
+B_over_A = 5.0;            % measure of nonlinear effects (1)      (from "Nonlinear Acoustics" by Mark F. Hamilton, p. 34)
+beta = 1 + B_over_A / 2;   % coefficient of nonlinearity (1) 
+gamma = 1.0079;            % ratio of specific heats               (from "Acoustics" by A. D. Pierce, p. 34)
+Pr = 7;                    % Prandtl number mu * c_p / kappa       (from "Acoustics" by A. D. Pierce, p. 514)
 
 %--------------------------------------------------------------------------
 % dependent
 %--------------------------------------------------------------------------
-nu = mu / rho_0;                    %kinematic viscosity (m^2 / s)
-delta = nu * (4/3 + mu_B_over_mu + (gamma - 1) / Pr);  %sound diffusivity (m^2 / s) (from "Nonlinear Acoustics" by Mark F. Hamilton)
-a = delta / (2 * c_0^3);            %factor a in Burgers' equation
-b = beta / (rho_0 * c_0^3);         %factor b in Burgers' equation
+nu = mu / rho_0;                    % kinematic viscosity (m^2 / s)
+delta = nu * (4/3 + mu_B_over_mu + (gamma - 1) / Pr);  % sound diffusivity (m^2 / s) (from "Nonlinear Acoustics" by Mark F. Hamilton)
+a = delta / (2 * c_0^3);            % factor a in Burgers' equation
+b = beta / (rho_0 * c_0^3);         % factor b in Burgers' equation
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% signal processing parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-f_s = 10^9;
+f_s = 1e9;  % sampling rate
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% define input waveform
@@ -49,7 +49,7 @@ amplitudes = [ 5e5; 7.5e5 ];%[1; 10; 100; 250; 500; 550; 600; 650; 700; 750; 800
 N_amplitudes = numel(amplitudes);
 
 %compute Gaussian pulse
-f_c = 3.5 * 10^6;       % center frequency (Hz)
+f_c = 3.5e6;            % center frequency (Hz)
 frac_bw = 1;            % fractional bandwidth
 atten_bw = 6;           % attenuation at bandwidth (dB)
 atten_td = 100;         % attenuation in time-domain which marks end of Gaussian pulse
@@ -337,114 +337,222 @@ hdl_lgnd = legend( str_legend_2, 'Location', 'eastoutside' );
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% create movie (high pressure)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-draw_steps = (1:2:N_steps_prop + 1);
-N_draw_steps = numel(draw_steps);
+index_figure = 2 * N_amplitudes + 2;
+index_amplitude = 2;    % select amplitude
+index_order = 10;       % order of Volterra polynomial
 
-index_nyquist = ceil(numel(tau_axis) / 2);
-f_axis = f_s * (0:(index_nyquist - 1)) / numel(tau_axis);
+indices_steps_draw = (1:1:N_steps_prop + 1);
+N_steps_draw = numel( indices_steps_draw );
 
-F = moviein(N_draw_steps);
-figure(1);
-set(gcf, 'Units', 'centimeters');
-set(gcf, 'Position', [10, 10, 20, 13]);
-set(gcf, 'PaperSize', [10, 10]);
-set(gcf, 'NextPlot', 'replacechildren');
+N_dft = 8192;
+index_shift = ceil( N_dft / 2 );
+f_axis = f_s * (0:(index_shift - 1)) / N_dft;
 
-for k = 1:N_draw_steps
-    
-    %plot waveform
-    subplot(1,2,1);   
-    plot(gca, tau_axis * 10^6, pressure_reference{7,draw_steps(k)} / 10^6, tau_axis * 10^6, pressure_volterra{7,1,draw_steps(k)} / 10^6);
-    
-    set(gca, 'Units', 'centimeters');
-    set(gca, 'Position', [1.5, 1.5, 8, 11]);
-	set(gca, 'FontName', 'Times New Roman', 'FontSize', 12);
-    
-    xlim([-0.6,0.6]);
-    set(gca, 'XTick', (-0.6:0.1:0.6));
-    set(gca, 'XGrid', 'on');
-    xlbl_hdl = xlabel('$\tau$ / $\mu$s', 'Interpreter', 'LaTeX', 'FontSize', 16);
-    xlbl_pos = get(xlbl_hdl, 'Position');
-    set(xlbl_hdl, 'Position', xlbl_pos + [0, 0, 0]);
-    ylim([-0.5, 1.1]);
-    set(gca, 'YGrid', 'on');
-    ylbl_hdl = ylabel('p / MPa', 'Interpreter', 'LaTeX', 'FontSize', 16);
-    ylbl_pos = get(ylbl_hdl, 'Position');
-    set(ylbl_hdl, 'Position', ylbl_pos + [0.02, 0, 0]);
-   
-    text(-0.2, 1.05, sprintf('$z = %.1f$ cm', (draw_steps(k) - 1) * delta_z * 100), 'Interpreter', 'LaTeX', 'FontSize', 16);
-    
-    %plot spectrum
-    subplot(1,2,2);
-    pressure_reference_dft = abs(fft(pressure_reference{7,draw_steps(k)}));
-    pressure_reference_dft_dB = 20 * log10(pressure_reference_dft / max(pressure_reference_dft));
-    pressure_volterra_dft = abs(fft(pressure_volterra{7,1,draw_steps(k)})) / 10^6;
-    pressure_volterra_dft_dB = 20 * log10(pressure_volterra_dft / max(pressure_volterra_dft));
-    
-    plot(gca, f_axis / 10^6, pressure_reference_dft_dB(1:index_nyquist), f_axis / 10^6, pressure_volterra_dft_dB(1:index_nyquist));
-    set(gca, 'Units', 'centimeters');
-    set(gca, 'Position', [11, 1.5, 8, 11]);
-	set(gca, 'FontName', 'Times New Roman', 'FontSize', 12);
-    
-    
-    xlim([0, 30]);
-    set(gca, 'XGrid', 'on');
-    xlbl_hdl = xlabel('$f$ / MHz', 'Interpreter', 'LaTeX', 'FontSize', 16);
-    xlbl_pos = get(xlbl_hdl, 'Position');
-    set(xlbl_hdl, 'Position', xlbl_pos + [0, 0, 0]);
-    ylim([0, 30]);
-    
-    leg_hdl = legend('nichtlinear', 'linear');
-    set(leg_hdl, 'Interpreter', 'LaTeX', 'FontSize', 16);
-    leg_pos = get(leg_hdl, 'Position');
-    set(leg_hdl, 'Position', [9.5 - leg_pos(3), 12.5 - leg_pos(4), leg_pos(3), leg_pos(4)]);
-    
-    F(k) = getframe(gcf);
+%--------------------------------------------------------------------------
+% geometrical parameters
+%--------------------------------------------------------------------------
+scale = 1;
+N_plots_x = 2;
+N_plots_y = 1;
+width_axis_x = 8 * scale;
+width_axis_y = 7 * scale;
+spacing_axis_x = 1.5 * ones( 1, N_plots_x - 1 );
+spacing_axis_y = 0.75;
+axis_x_offset = 1.5;
+axis_y_offset = 1.5;
+width_cb_x = 0.4;
+delta_cb = 0.3;
+delta_lgd = 0.4;
+height_lgd = 0.75;
+
+text_size = 10;
+
+size_legend = size_label;
+
+%--------------------------------------------------------------------------
+% axis limits and ticks
+%--------------------------------------------------------------------------
+limits_tau = [ -0.6, 0.6 ];
+limits_p = [ -0.5, 1.1 ];
+
+limits_f = [ 0, 20 ];
+limits_dB = [ -40, 0 ];
+
+tau_tick = (-0.6:0.1:0.6);
+p_tick = (-0.5:0.25:1.1);
+
+f_tick = (0:1:20);
+dB_tick = (-40:5:0);
+
+ticks_font = 'Times';
+ticks_size = text_size;
+ticks_color = 'k';
+
+%--------------------------------------------------------------------------
+% axis labels
+%--------------------------------------------------------------------------
+label_font = 'Times';
+label_size = text_size + 2;
+label_color = 'k';
+
+label_tau_str = 'Retarded time (us)';
+label_p_str = 'Acoustic pressure (MPa)';
+
+label_f_str = 'Normalized frequency (1)';
+label_dB_str = 'Spectrum (dB)';
+
+%--------------------------------------------------------------------------
+% titles
+%--------------------------------------------------------------------------
+title_font = 'Times';
+title_size = text_size + 4;
+title_color = 'k';
+
+title_factor_shift_x = 0;
+title_factor_shift_y = -0.075;
+
+%--------------------------------------------------------------------------
+% dependent parameters
+%--------------------------------------------------------------------------
+pos_x = zeros( 1, N_plots_x );
+pos_y = zeros( 1, N_plots_y );
+
+for index_x = 1:N_plots_x
+    pos_x( index_x ) = axis_x_offset + ( index_x - 1 ) * width_axis_x + sum( spacing_axis_x( 1:( index_x - 1 ) ) );
+end
+for index_y = 1:N_plots_y
+    pos_y( index_y ) = axis_y_offset + ( N_plots_y - index_y ) * ( width_axis_y + spacing_axis_y );
 end
 
-movie2avi(F, './burgers_comparison_hp.avi');
+width_cb_y = pos_y(1) + width_axis_y - pos_y(end);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% create movie (low pressure)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-draw_steps = (1:2:N_steps_prop + 1);
-N_draw_steps = numel(draw_steps);
+pos_x_cb = pos_x(end) + width_axis_x + delta_cb;
 
-F = moviein(N_draw_steps);
-figure(1);
-set(gcf, 'Units', 'centimeters');
-set(gcf, 'Position', [10, 10, 18, 13]);
-set(gcf, 'PaperSize', [10, 10]);
+paper_size_x = pos_x( end ) + width_axis_x + delta_cb + width_cb_x + 0.5;
+paper_size_y = pos_y( 1 ) + width_axis_y + height_lgd + 0.5;
+
+% create a video writer object for the output video file and open the object for writing
+str_filename = 'burgers_propagation_hp.gif';
+% video = VideoWriter( 'burgers_propagation_hp.avi', 'Motion JPEG AVI' );
+% video.FrameRate = 10;
+% open( video );
+
+%--------------------------------------------------------------------------
+% create figure
+%--------------------------------------------------------------------------
+figure( index_figure );
+
+set( gcf, 'Units', 'centimeters');
+set( gcf, 'Position', [ 10, 10, paper_size_x, paper_size_y ] );
+set( gcf, 'PaperSize', [ paper_size_x, paper_size_y ] );
+set( gcf, 'PaperPositionMode', 'auto');
 set(gcf, 'NextPlot', 'replacechildren');
 
-set(gca, 'Units', 'centimeters');
-set(gca, 'Position', [1.5, 1.5, 16, 11]);
-set(gca, 'FontName', 'Times New Roman', 'FontSize', 12);
+axes_hdl = zeros( 1, N_plots_x * N_plots_y );
 
-for k = 1:N_draw_steps
-    
-    %plot waveform   
-    plot(gca, tau_axis * 10^6, pressure_reference{3,draw_steps(k)} / 10^3, tau_axis * 10^6, pressure_volterra{3,1,draw_steps(k)} / 10^3);
-    xlim([-0.6,0.6]);
-    set(gca, 'XTick', (-0.6:0.1:0.6));
-    set(gca, 'XGrid', 'on');
-    xlbl_hdl = xlabel('$\tau$ / $\mu$s', 'Interpreter', 'LaTeX', 'FontSize', 16);
-    xlbl_pos = get(xlbl_hdl, 'Position');
-    set(xlbl_hdl, 'Position', xlbl_pos + [0, 0, 0]);
-    ylim([-50, 110]);
-    set(gca, 'YGrid', 'on');
-    ylbl_hdl = ylabel('p / kPa', 'Interpreter', 'LaTeX', 'FontSize', 16);
-    ylbl_pos = get(ylbl_hdl, 'Position');
-    set(ylbl_hdl, 'Position', ylbl_pos + [0.02, 0, 0]);
-        
-    leg_hdl = legend('nichtlinear', 'linear');
-    set(leg_hdl, 'Interpreter', 'LaTeX', 'FontSize', 16);
-    leg_pos = get(leg_hdl, 'Position');
-    set(leg_hdl, 'Position', [17.5 - leg_pos(3), 12.5 - leg_pos(4), leg_pos(3), leg_pos(4)]);
+for k = 1:N_steps_draw
 
-    text(0.36, 75, sprintf('$z = %.1f$ cm', (draw_steps(k) - 1) * delta_z * 100), 'Interpreter', 'LaTeX', 'FontSize', 16);  
-   
-    F(k) = getframe(gcf);
-end
+	%----------------------------------------------------------------------
+	% plot waveform
+	%----------------------------------------------------------------------
+	axes_hdl( 1 ) = subplot( 1, 2, 1 );
+    plot( tau_axis * 1e6, pressure_volterra{ index_amplitude, 1, indices_steps_draw( k ) } / 1e6, ...
+          tau_axis * 1e6, pressure_volterra{ index_amplitude, index_order, indices_steps_draw( k ) } / 1e6 );
 
-movie2avi(F, 'C:\temp\burgers_comparison_lp.avi');
+	%----------------------------------------------------------------------
+	% plot spectrum
+	%----------------------------------------------------------------------
+	axes_hdl( 2 ) = subplot( 1, 2, 2 );
+	pressure_reference_dft = abs( fft( pressure_volterra{ index_amplitude, 1, indices_steps_draw( k ) }, N_dft ) );
+	pressure_reference_dft_dB = 20 * log10( pressure_reference_dft / max( pressure_reference_dft ) );
+	pressure_volterra_dft = abs( fft( pressure_volterra{ index_amplitude, index_order, indices_steps_draw( k ) }, N_dft ) );
+	pressure_volterra_dft_dB = 20 * log10( pressure_volterra_dft / max(pressure_volterra_dft ) );
+
+    plot( f_axis / f_c, pressure_reference_dft_dB( 1:index_shift ), f_axis / f_c, pressure_volterra_dft_dB( 1:index_shift ) );
+
+    %----------------------------------------------------------------------
+    % legend
+    %----------------------------------------------------------------------
+	leg_hdl = legend( { 'linear propagation', 'nonlinear propagation' }, 'Location', 'northoutside', 'Orientation', 'horizontal', 'Units', 'centimeters' );
+    set( leg_hdl, 'FontSize', size_legend );
+	set( leg_hdl, 'Position', [ pos_x( 2 ), pos_y( 1 ) + width_axis_y + delta_lgd, width_axis_x, height_lgd ] );
+
+    %----------------------------------------------------------------------
+    % format plots
+    %----------------------------------------------------------------------
+    for index_axis = 1:numel( axes_hdl )
+
+        % size and position
+        set( axes_hdl( index_axis ), 'Units', 'centimeters' );
+        set( axes_hdl( index_axis ), 'FontName', ticks_font, 'FontSize', ticks_size );
+
+        if index_axis == 1
+            set( axes_hdl( index_axis ), 'Position', [ pos_x( index_axis ), pos_y( 1 ), width_axis_x, width_axis_y ] );
+        else
+            set( axes_hdl( index_axis ), 'Position', [ pos_x( index_axis ), pos_y( 1 ), width_axis_x, width_axis_y ] );
+        end
+
+        % axes limits and ticks
+        if index_axis == 1
+            xlim( axes_hdl( index_axis ), limits_tau );
+            ylim( axes_hdl( index_axis ), limits_p );
+            set( axes_hdl( index_axis ), 'XTick', tau_tick );
+            set( axes_hdl( index_axis ), 'YTick', p_tick );
+        else
+            xlim( axes_hdl( index_axis ), limits_f );
+            ylim( axes_hdl( index_axis ), limits_dB );
+            set( axes_hdl( index_axis ), 'XTick', f_tick );
+            set( axes_hdl( index_axis ), 'YTick', dB_tick );
+        end
+        set( axes_hdl( index_axis ), 'XGrid', 'on' );
+        set( axes_hdl( index_axis ), 'YGrid', 'on' );
+
+        % labels
+        if index_axis == 1
+            xlbl_hdl = xlabel( axes_hdl( index_axis ), label_tau_str, 'FontName', label_font, 'FontSize', label_size, 'Color', label_color );
+            xlbl_pos = get( xlbl_hdl, 'Position' );
+            set( xlbl_hdl, 'Position', xlbl_pos + [0, 0, 0] );
+        else
+            xlbl_hdl = xlabel( axes_hdl( index_axis ), label_f_str, 'FontName', label_font, 'FontSize', label_size, 'Color', label_color );
+%             set(xlbl_hdl, 'Position', xlbl_pos + [0, 0, 0]);
+        end
+
+        if index_axis == 1
+            ylbl_hdl = ylabel( axes_hdl( index_axis ), label_p_str, 'FontName', label_font, 'FontSize', label_size, 'Color', label_color );
+            ylbl_pos = get( ylbl_hdl, 'Position' );
+            set(ylbl_hdl, 'Position', ylbl_pos + [0, 0, 0]);
+        else
+            ylbl_hdl = ylabel( axes_hdl( index_axis ), label_dB_str, 'FontName', label_font, 'FontSize', label_size, 'Color', label_color );
+%             set(ylbl_hdl, 'Position', ylbl_pos + [0, 0, 0]);
+        end
+
+        % titles
+        if index_axis == 1
+            set( gcf, 'currentaxes', axes_hdl( index_axis ) );
+            tit_pos_x = limits_tau( 1 ) + title_factor_shift_x * diff( limits_tau );
+            tit_pos_y = limits_p( 2 ) - title_factor_shift_y * diff( limits_p );
+            tit_hdl = text( tit_pos_x, tit_pos_y, sprintf( 'Propagation distance: %.1f cm', ( indices_steps_draw( k ) - 1 ) * delta_z * 1e2 ), 'Units', 'data', 'FontName', title_font, 'FontSize', title_size, 'Interpreter', 'none', 'Color', title_color, 'FontWeight', 'bold', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'left' );
+        end
+
+    end % for index_axis = 1:numel( axes_hdl )
+
+    %----------------------------------------------------------------------
+    % write figure to movie
+    %----------------------------------------------------------------------
+	% write current figure as frame
+    frame = getframe( gcf );
+% 	writeVideo( video, frame );
+    image = frame2im( frame );
+	[ imind, cm ] = rgb2ind( image, 256 );
+
+	% write to the GIF File
+	if k == 1
+        imwrite( imind, cm, str_filename, 'gif', 'Loopcount', inf);
+    else
+        imwrite( imind, cm, str_filename, 'gif', 'WriteMode', 'append');
+    end
+
+end % for k = 1:N_steps_draw
+
+% close video object
+% close( video );
