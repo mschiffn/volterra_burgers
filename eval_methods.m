@@ -1,9 +1,9 @@
 % evaluate methods to solve the Burgers equation
 % Volterra polynomial vs. fractional steps method
 %
-% author: Martin Schiffner
+% author: Martin F. Schiffner
 % date: 2009-04-14
-% modified: 2020-05-07
+% modified: 2020-05-11
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% clear workspace
@@ -42,38 +42,49 @@ b = beta / (rho_0 * c_0^3);         % factor b in Burgers' equation
 f_s = 1e9;  % sampling rate
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% define input waveform
+%% define modulated Gaussian pulse
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-amplitudes = [ 5e5; 7.5e5 ];%[1; 10; 100; 250; 500; 550; 600; 650; 700; 750; 800; 850; 900; 950; 1000] * 10^3;
-N_amplitudes = numel(amplitudes);
-
-%compute Gaussian pulse
-f_c = 3.5e6;            % center frequency (Hz)
-frac_bw = 1;            % fractional bandwidth
-atten_bw = 6;           % attenuation at bandwidth (dB)
-atten_td = 100;         % attenuation in time-domain which marks end of Gaussian pulse
-
-%compute dependent parameters
-omega_c = 2 * pi * f_c;
-sigma = frac_bw * omega_c / (2 * sqrt(atten_bw / (10 * log10(exp(1)))));
-N_cutoff = ceil(f_s * sqrt(atten_td / (10 * sigma^2) * log(10)));
-
-tau_axis = (-N_cutoff:N_cutoff) / f_s;
-N_samples = 2 * N_cutoff + 1;
-pressure_input_temp = gauspuls(tau_axis, f_c, 1, -atten_bw);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% compute reference waveforms using fractional steps method (very small step size)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+%--------------------------------------------------------------------------
 % independent parameters
-delta_z_ref = 5e-4;     % propagation distance per step (m)
-z_stop = 0.25;          % total propagation distance (m)
+%--------------------------------------------------------------------------
+amplitudes = [ 2.5e5; 5e5; 7.5e5 ];	% amplitudes of the acoustic pressure (Pa)
+f_c = 3.5e6;        % center frequency (Hz)
+frac_bw = 1;        % fractional bandwidth (power ratios) (1)
+atten_bw = 6;       % attenuation at bandwidth bounds (dB)
+atten_td = 100;     % attenuation in time-domain which marks end of Gaussian pulse (dB)
 
+%--------------------------------------------------------------------------
 % dependent parameters
+%--------------------------------------------------------------------------
+N_amplitudes = numel( amplitudes );
+t_cut = gauspuls( 'cutoff', f_c, frac_bw, -atten_bw, -atten_td );	% cutoff time (s)
+M_samples = ceil( t_cut * f_s );                                    % symmetric number of samples (1)
+tau_axis = ( -M_samples:M_samples ) / f_s;                          % axis of retarded time (s)
+N_samples = 2 * M_samples + 1;                                      % number of samples (1)
+
+%--------------------------------------------------------------------------
+% compute pulse
+%--------------------------------------------------------------------------
+pressure_input_temp = gauspuls( tau_axis, f_c, frac_bw, -atten_bw );
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% compute reference waveforms (fractional steps method w/ small step size)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%--------------------------------------------------------------------------
+% 1.) specify parameters
+%--------------------------------------------------------------------------
+% independent
+delta_z_ref = 5e-4;     % propagation distance per step (m)
+z_stop = 0.5;           % total propagation distance (m)
+
+% dependent
 N_steps_prop = floor( z_stop / delta_z_ref );
 
+%--------------------------------------------------------------------------
+% 2.) compute reference waveforms
+%--------------------------------------------------------------------------
 % allocate memory for results
 pressure_reference = cell( N_amplitudes, N_steps_prop + 1 );
 N_steps_nonlin = zeros( N_amplitudes, N_steps_prop + 1 );
@@ -81,8 +92,9 @@ N_steps_nonlin = zeros( N_amplitudes, N_steps_prop + 1 );
 % iterate amplitudes
 for k = 1:N_amplitudes
 
-    % print status
-    fprintf( 'processing amplitude %d of %d (%d)\n', k, N_amplitudes, amplitudes( k ) );
+	% print status
+	time_start = tic;
+	fprintf( 'processing amplitude %d of %d (%d kPa)... ', k, N_amplitudes, amplitudes( k ) / 1e3 );
 
     % define initial pressure waveform
     pressure_reference{ k, 1 } = amplitudes( k ) * pressure_input_temp;
@@ -90,33 +102,46 @@ for k = 1:N_amplitudes
     % compute waveforms for each propagation step
     for l = 1:N_steps_prop
 
-        % print status
-        fprintf( '\tstep %d of %d...\n', l, N_steps_prop );
+        % print progress in percent
+        N_bytes = fprintf( '%5.1f %%', ( l - 1 ) / N_steps_prop * 1e2 );
 
         % call fractional steps method
         %[pressure_reference{k, l + 1}, N_steps_nonlin(k, l + 1)] = burgers_frac_steps(pressure_reference{k, l}, f_s, delta_z_ref, a, b, 0);
-        pressure_reference{k, l + 1} = fractional_steps.step( pressure_reference{ k, l }, f_s, delta_z_ref, a, b, 1 );
+        pressure_reference{ k, l + 1 } = fractional_steps.step( pressure_reference{ k, l }, f_s, delta_z_ref, a, b, 1 );
 
-    end % for l = 1:N_steps_prop
+        % erase progress in percent
+        fprintf( repmat( '\b', [ 1, N_bytes ] ) );
+
+	end % for l = 1:N_steps_prop
+
+	% infer and print elapsed time
+	time_elapsed = toc( time_start );
+	fprintf( 'done! (%f s)\n', time_elapsed );
 
 end % for k = 1:N_amplitudes
 
 % save results
-str_filename = sprintf( 'pressure_reference_%d.mat', z_stop * 100 );
-save( str_filename, 'pressure_reference', 'delta_z_ref', 'f_s', 'amplitudes', 'z_stop' );
+% str_filename = sprintf( 'pressure_reference_%d.mat', z_stop * 100 );
+% save( str_filename, 'pressure_reference', 'delta_z_ref', 'f_s', 'amplitudes', 'z_stop' );
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% evaluate waveforms using Volterra system
+%% compute waveforms (Volterra system)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% independent parameters
+%--------------------------------------------------------------------------
+% 1.) specify parameters
+%--------------------------------------------------------------------------
+% independent
 delta_z = 5e-3;                                 % propagation distance per step (m)
 orders_N = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ];	% orders of Volterra polynomials (1)
 
-% dependent parameters
+% dependent
 N_steps_prop = floor( z_stop / delta_z );	% number of required propagation steps
 N_orders = numel( orders_N );
 
+%--------------------------------------------------------------------------
+% 2.) compute waveforms
+%--------------------------------------------------------------------------
 % allocate memory for results
 pressure_volterra = cell( N_amplitudes, N_orders, N_steps_prop + 1 );
 
@@ -124,7 +149,8 @@ pressure_volterra = cell( N_amplitudes, N_orders, N_steps_prop + 1 );
 for k = 1:N_amplitudes
 
 	% print status
-	fprintf( 'processing amplitude %d of %d (%d)\n', k, N_amplitudes, amplitudes( k ) );
+	time_start = tic;
+	fprintf( 'processing amplitude %d of %d (%d kPa)...\n', k, N_amplitudes, amplitudes( k ) / 1e3 );
 
 	% iterate polynomial orders
 	for l = 1:N_orders
@@ -143,50 +169,70 @@ for k = 1:N_amplitudes
 
         end % for m = 1:N_steps_prop
 
-    end % for l = 1:N_orders
+	end % for l = 1:N_orders
+
+    % infer and print elapsed time
+	time_elapsed = toc( time_start );
+	fprintf( 'done! (%f s)\n', time_elapsed );
 
 end % for k = 1:N_amplitudes
 
 % save results
-str_filename = sprintf( 'pressure_volterra_%.1f.mat', delta_z * 1000 );
-save( str_filename, 'pressure_volterra', 'orders_N', 'delta_z', 'f_s', 'amplitudes', 'z_stop', 'N_steps_prop' );
+% str_filename = sprintf( 'pressure_volterra_%.1f.mat', delta_z * 1000 );
+% save( str_filename, 'pressure_volterra', 'orders_N', 'delta_z', 'f_s', 'amplitudes', 'z_stop', 'N_steps_prop' );
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% evaluate waveforms using fractional steps method
+%% compute waveforms (fractional steps method)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%--------------------------------------------------------------------------
+% 1.) specify parameters
+%--------------------------------------------------------------------------
+% see Volterra system
+
+%--------------------------------------------------------------------------
+% 2.) compute waveforms
+%--------------------------------------------------------------------------
 % allocate memory for results
-pressure_frac_steps = cell(N_amplitudes, N_steps_prop + 1);
+pressure_frac_steps = cell( N_amplitudes, N_steps_prop + 1 );
 
 % iterate amplitudes
-for k = 1:N_amplitudes 
+for k = 1:N_amplitudes
 
 	% print status
-	fprintf( 'processing amplitude %d of %d (%d)\n', k, N_amplitudes, amplitudes( k ) );
+	time_start = tic;
+	fprintf( 'processing amplitude %d of %d (%d kPa)... ', k, N_amplitudes, amplitudes( k ) / 1e3 );
 
 	% define initial pressure waveform
-	pressure_frac_steps{k,1} = amplitudes(k) * pressure_input_temp;
+	pressure_frac_steps{ k, 1 } = amplitudes( k ) * pressure_input_temp;
 
 	% compute waveforms for each propagation step
-    for l = 1:N_steps_prop
+	for l = 1:N_steps_prop
 
-        % print status
-        fprintf( '\tstep %d of %d...\n', l, N_steps_prop );
+        % print progress in percent
+        N_bytes = fprintf( '%5.1f %%', ( l - 1 ) / N_steps_prop * 1e2 );
 
         % call fractional steps method
 %         [ pressure_reference{ k, l + 1 }, N_steps_nonlin( k, l + 1 ) ] = burgers_frac_steps( pressure_reference{ k, l }, f_s, delta_z_ref, a, b, 0 );
         pressure_frac_steps{ k, l + 1 } = fractional_steps.step( pressure_frac_steps{ k, l }, f_s, delta_z, a, b, 1 );
 
-    end % for l = 1:N_steps_prop
+        % erase progress in percent
+        fprintf( repmat( '\b', [ 1, N_bytes ] ) );
 
-end % for k = 1:N_amplitudes 
+	end % for l = 1:N_steps_prop
+
+	% infer and print elapsed time
+	time_elapsed = toc( time_start );
+	fprintf( 'done! (%f s)\n', time_elapsed );
+
+end % for k = 1:N_amplitudes
 
 % save results
-str_filename = sprintf( 'pressure_frac_steps_%.1f.mat', delta_z * 1000 );
-save( str_filename, 'pressure_frac_steps', 'delta_z', 'f_s', 'amplitudes', 'z_stop', 'N_steps_prop' );
+% str_filename = sprintf( 'pressure_frac_steps_%.1f.mat', delta_z * 1000 );
+% save( str_filename, 'pressure_frac_steps', 'delta_z', 'f_s', 'amplitudes', 'z_stop', 'N_steps_prop' );
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% compute error metrics of both approaches
+%% compute error metrics: 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % error metrics
@@ -206,8 +252,11 @@ coefficient_correlation_frac_steps = zeros( N_amplitudes, N_steps_prop );
 % iterate amplitudes
 for k = 1:N_amplitudes
 
-    % iterate polynomial orders
-    for l = 1:N_orders
+	%----------------------------------------------------------------------
+	% a) Volterra system vs reference
+	%----------------------------------------------------------------------
+	% iterate polynomial orders
+	for l = 1:N_orders
 
         % iterate steps
         for m = 1:N_steps_prop
@@ -218,23 +267,29 @@ for k = 1:N_amplitudes
             error_rel_max_volterra( k, l, m ) = linfty_norm( error ) / linfty_norm( pressure_comparison );
             coefficient_correlation_volterra( k, l, m ) =  correlation_coefficient( pressure_volterra{ k, l, m + 1 }, pressure_comparison );
 
-        end
-    end
+        end % for m = 1:N_steps_prop
 
-    % fractional steps method
-    for m = 1:N_steps_prop
+	end % for l = 1:N_orders
 
-           pressure_comparison = pressure_reference{ k, m * round( delta_z / delta_z_ref ) + 1 };
-           error = pressure_comparison - pressure_frac_steps{ k, m + 1 };
-           error_rel_norm_frac_steps( k, m ) = l2_norm( error ) / l2_norm( pressure_comparison );
-           error_rel_max_frac_steps( k, m ) = linfty_norm( error ) / linfty_norm( pressure_comparison );
-           coefficient_correlation_frac_steps( k, m ) =  correlation_coefficient( pressure_frac_steps{ k, m + 1 }, pressure_comparison );
-    end  
-end
+	%----------------------------------------------------------------------
+	% b) fractional steps vs reference
+	%----------------------------------------------------------------------
+	% iterate steps
+	for m = 1:N_steps_prop
+
+        pressure_comparison = pressure_reference{ k, m * round( delta_z / delta_z_ref ) + 1 };
+        error = pressure_comparison - pressure_frac_steps{ k, m + 1 };
+        error_rel_norm_frac_steps( k, m ) = l2_norm( error ) / l2_norm( pressure_comparison );
+        error_rel_max_frac_steps( k, m ) = linfty_norm( error ) / linfty_norm( pressure_comparison );
+        coefficient_correlation_frac_steps( k, m ) =  correlation_coefficient( pressure_frac_steps{ k, m + 1 }, pressure_comparison );
+
+	end % for m = 1:N_steps_prop
+
+end % for k = 1:N_amplitudes
 
 % save results
-str_filename = sprintf( 'errors_%.1f.mat', delta_z * 1000 );
-save( str_filename, 'error_rel_norm_volterra', 'error_rel_norm_frac_steps', 'coefficient_correlation_volterra', 'delta_z', 'f_s', 'amplitudes', 'z_stop', 'N_steps_prop' );
+% str_filename = sprintf( 'errors_%.1f.mat', delta_z * 1000 );
+% save( str_filename, 'error_rel_norm_volterra', 'error_rel_norm_frac_steps', 'coefficient_correlation_volterra', 'delta_z', 'f_s', 'amplitudes', 'z_stop', 'N_steps_prop' );
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% plot results
@@ -335,10 +390,10 @@ hdl_lgnd = legend( str_legend_2, 'Location', 'eastoutside' );
 % print(gcf, '-r600', '-dmeta', str_filename_emf);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% create movie (high pressure)
+%% create movie
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 index_figure = 2 * N_amplitudes + 2;
-index_amplitude = 2;    % select amplitude
+index_amplitude = 3;    % select amplitude
 index_order = 10;       % order of Volterra polynomial
 
 indices_steps_draw = (1:1:N_steps_prop + 1);
@@ -360,8 +415,6 @@ spacing_axis_x = 1.5 * ones( 1, N_plots_x - 1 );
 spacing_axis_y = 0.75;
 axis_x_offset = 1.5;
 axis_y_offset = 1.5;
-width_cb_x = 0.4;
-delta_cb = 0.3;
 delta_lgd = 0.4;
 height_lgd = 0.75;
 
@@ -428,12 +481,8 @@ for index_y = 1:N_plots_y
     pos_y( index_y ) = axis_y_offset + ( N_plots_y - index_y ) * ( width_axis_y + spacing_axis_y );
 end
 
-width_cb_y = pos_y(1) + width_axis_y - pos_y(end);
-
-pos_x_cb = pos_x(end) + width_axis_x + delta_cb;
-
-paper_size_x = pos_x( end ) + width_axis_x + delta_cb + width_cb_x + 0.5;
-paper_size_y = pos_y( 1 ) + width_axis_y + height_lgd + 0.5;
+paper_size_x = pos_x( end ) + width_axis_x + 0.5;
+paper_size_y = pos_y( 1 ) + width_axis_y + delta_lgd + height_lgd + 0.5;
 
 % create a video writer object for the output video file and open the object for writing
 str_filename = 'burgers_propagation_hp.gif';
@@ -476,7 +525,7 @@ for k = 1:N_steps_draw
     %----------------------------------------------------------------------
     % legend
     %----------------------------------------------------------------------
-	leg_hdl = legend( { 'linear propagation', 'nonlinear propagation' }, 'Location', 'northoutside', 'Orientation', 'horizontal', 'Units', 'centimeters' );
+	leg_hdl = legend( { 'linear', 'nonlinear' }, 'Orientation', 'horizontal', 'Units', 'centimeters' );
     set( leg_hdl, 'FontName', legend_font, 'FontSize', legend_size );
 	set( leg_hdl, 'Position', [ pos_x( 2 ), pos_y( 1 ) + width_axis_y + delta_lgd, width_axis_x, height_lgd ] );
 
@@ -488,12 +537,7 @@ for k = 1:N_steps_draw
         % size and position
         set( axes_hdl( index_axis ), 'Units', 'centimeters' );
         set( axes_hdl( index_axis ), 'FontName', ticks_font, 'FontSize', ticks_size );
-
-        if index_axis == 1
-            set( axes_hdl( index_axis ), 'Position', [ pos_x( index_axis ), pos_y( 1 ), width_axis_x, width_axis_y ] );
-        else
-            set( axes_hdl( index_axis ), 'Position', [ pos_x( index_axis ), pos_y( 1 ), width_axis_x, width_axis_y ] );
-        end
+        set( axes_hdl( index_axis ), 'Position', [ pos_x( index_axis ), pos_y( 1 ), width_axis_x, width_axis_y ] );
 
         % axes limits and ticks
         if index_axis == 1
